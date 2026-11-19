@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROK BOT WHALE</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial,sans-serif;padding:18px}
+h2{color:#00d9ff}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
+input,button{padding:12px;border-radius:8px;border:0;margin:5px 0}
+input{background:#202b3c;color:white;width:90%}
+button{background:#00c8e8;color:#06120e;font-weight:bold}
+small{color:#91a0b7}
+</style>
+</head>
+<body>
+<h2>GROK BOT — WHALE v0.8</h2>
+<p>Solana Large Wallet Monitor</p>
+
+<div class="card">
+<h3>Tambah Wallet Pantauan</h3>
+<input id="wallet" placeholder="Alamat wallet Solana publik">
+<button onclick="addWallet()">TAMBAH WALLET</button>
+<small>Gunakan alamat publik saja. Jangan masukkan private key atau seed phrase.</small>
+</div>
+
+<div class="card">
+<h3>Daftar Wallet</h3>
+<div id="wallets">Belum ada wallet.</div>
+</div>
+
+<div class="card">
+<h3>Aktivitas Terbaru</h3>
+<div id="activity">Belum ada aktivitas.</div>
+</div>
+
+<script>
+const rpc='https://api.mainnet-beta.solana.com';
+let wallets=[];
+let seen=new Set();
+
+function addWallet(){
+ const address=document.getElementById('wallet').value.trim();
+ if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)){
+  alert('Alamat wallet tidak valid');return;
+ }
+ if(wallets.includes(address)){alert('Wallet sudah ditambahkan');return;}
+ wallets.push(address);
+ document.getElementById('wallet').value='';
+ renderWallets();
+ checkWallet(address);
+}
+
+function renderWallets(){
+ document.getElementById('wallets').innerHTML='';
+ wallets.forEach((w,i)=>{
+  const div=document.createElement('div');
+  div.className='card';
+  div.textContent=w+' ';
+  const btn=document.createElement('button');
+  btn.textContent='HAPUS';
+  btn.onclick=()=>{wallets.splice(i,1);renderWallets();};
+  div.appendChild(btn);
+  document.getElementById('wallets').appendChild(div);
+ });
+}
+
+async function checkWallet(address){
+ try{
+  const response=await fetch(rpc,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({
+    jsonrpc:'2.0',
+    id:1,
+    method:'getSignaturesForAddress',
+    params:[address,{limit:10}]
+   })
+  });
+  const data=await response.json();
+  if(data.error)throw new Error(data.error.message);
+  (data.result||[]).forEach(tx=>{
+   if(seen.has(tx.signature))return;
+   seen.add(tx.signature);
+   const div=document.createElement('div');
+   div.className='card';
+   const link=document.createElement('a');
+   link.href='https://solscan.io/tx/'+tx.signature;
+   link.target='_blank';
+   link.style.color='#00d9ff';
+   link.textContent='Lihat transaksi di Solscan';
+   div.textContent='Wallet: '+address.slice(0,8)+'...'+
+    '\nWaktu: '+(tx.blockTime?new Date(tx.blockTime*1000).toLocaleString('id-ID'):'Tidak tersedia')+
+    '\nStatus: '+(tx.err?'Gagal':'Berhasil')+'\n';
+   div.appendChild(link);
+   document.getElementById('activity').prepend(div);
+  });
+ }catch(error){
+  const div=document.createElement('div');
+  div.className='card';
+  div.textContent='Gagal membaca wallet: '+error.message;
+  document.getElementById('activity').prepend(div);
+ }
+}
+
+setInterval(()=>{
+ wallets.forEach(checkWallet);
+},30000);
+</script>
+</body>
+</html>
