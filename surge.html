@@ -1,1 +1,88 @@
 
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT - SURGE</title>
+<style>
+body{background:#080b12;color:#fff;font-family:Arial;padding:18px}
+h1{color:#00e5a0}
+.status{color:#ffc857}
+.card{background:#151c29;border:1px solid #263448;border-radius:12px;padding:15px;margin:12px 0}
+.score{font-size:26px;color:#00e5a0;font-weight:bold}
+small{color:#9ca9bd;overflow-wrap:anywhere}
+.tag{color:#ffc857;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>GROK BOT</h1>
+<h3>SURGE DETECTOR 0.4</h3>
+<div class="status" id="status">Menghubungkan...</div>
+<div id="feed"></div>
+<script>
+const statusBox=document.getElementById("status");
+const feed=document.getElementById("feed");
+const tokens=new Map();
+
+function analyze(d){
+ const buy=Number(d.solAmount||d.initialQuoteAmount||0);
+ const mc=Number(d.marketCapSol||0);
+ let score=0;
+ if(buy>=5)score+=60;
+ else if(buy>=2)score+=45;
+ else if(buy>=1)score+=30;
+ else if(buy>0)score+=15;
+ if(mc>0 && mc<=50)score+=25;
+ else if(mc<=100 && mc>0)score+=15;
+ if(d.traderPublicKey)score+=15;
+ return Math.min(100,score);
+}
+
+function add(d){
+ if(!d.mint)return;
+ const score=analyze(d);
+ tokens.set(d.mint,{...d,score});
+ const sorted=[...tokens.values()].sort((a,b)=>b.score-a.score);
+ feed.innerHTML="";
+ sorted.forEach(t=>{
+  const card=document.createElement("div");
+  card.className="card";
+  const title=document.createElement("h3");
+  title.textContent=(t.name||"Unknown")+" ("+(t.symbol||"-")+")";
+  const points=document.createElement("div");
+  points.className="score";
+  points.textContent=t.score+"/100";
+  const tag=document.createElement("div");
+  tag.className="tag";
+  tag.textContent=t.score>=70?"AKTIVITAS AWAL TINGGI":t.score>=40?"PANTAU AKTIVITAS":"AKTIVITAS AWAL RENDAH";
+  const info=document.createElement("p");
+  info.textContent="Pembelian awal: "+Number(t.solAmount||t.initialQuoteAmount||0).toFixed(3)+" SOL | Market cap: "+Number(t.marketCapSol||0).toFixed(2)+" SOL";
+  const address=document.createElement("small");
+  address.textContent="Mint: "+t.mint;
+  card.append(title,points,tag,info,address);
+  feed.appendChild(card);
+ });
+ if(tokens.size>100)tokens.delete(tokens.keys().next().value);
+}
+
+function connect(){
+ const ws=new WebSocket("wss://pumpportal.fun/api/data");
+ ws.onopen=()=>{
+  statusBox.textContent="TERHUBUNG - Memantau token baru";
+  ws.send(JSON.stringify({method:"subscribeNewToken"}));
+ };
+ ws.onmessage=e=>{
+  try{add(JSON.parse(e.data))}catch(err){}
+ };
+ ws.onerror=()=>statusBox.textContent="Koneksi bermasalah";
+ ws.onclose=()=>{
+  statusBox.textContent="Terputus - mencoba kembali...";
+  setTimeout(connect,5000);
+ };
+}
+connect();
+</script>
+</body>
+</html>
