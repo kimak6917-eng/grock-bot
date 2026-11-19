@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT SYSTEM CHECK</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
+h2{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:15px;margin:12px 0}
+button{background:#00c98b;color:#06120e;font-weight:bold;padding:12px;border:0;border-radius:8px;width:100%}
+.item{padding:10px;border-bottom:1px solid #263247}
+</style>
+</head>
+<body>
+<h2>GROK BOT — SYSTEM CHECK v2.4</h2>
+<p>Module Availability Checker</p>
+
+<div class="card">
+<button onclick="check()">CHECK ALL MODULES</button>
+<p id="summary">Belum diperiksa.</p>
+</div>
+
+<div class="card">
+<h3>MODULE STATUS</h3>
+<div id="results"></div>
+</div>
+
+<script>
+const files=[
+ 'index.html','feed.html','rank.html','surge.html',
+ 'alpha.html','copy.html','hold.html','whale.html',
+ 'dev.html','settings.html','logs.html','control.html',
+ 'performance.html','engine.html','risk.html','tracker.html'
+];
+
+async function check(){
+ const box=document.getElementById('results');
+ box.innerHTML='Memeriksa halaman...';
+ let online=0;
+ const results=await Promise.all(files.map(async file=>{
+  try{
+   const r=await fetch('./'+file,{method:'HEAD',cache:'no-store'});
+   return {file,ok:r.ok};
+  }catch(e){return {file,ok:false};}
+ }));
+ box.innerHTML='';
+ results.forEach(x=>{
+  if(x.ok)online++;
+  const div=document.createElement('div');
+  div.className='item';
+  div.textContent=(x.ok?'🟢 ONLINE':'🔴 TIDAK TERDETEKSI')+' — '+x.file;
+  box.append(div);
+ });
+ document.getElementById('summary').textContent=
+  online+' dari '+files.length+' halaman berhasil diperiksa.';
+}
+</script>
+</body>
+</html>
