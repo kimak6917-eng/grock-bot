@@ -3,82 +3,76 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GROK BOT PERFORMANCE</title>
 <style>
-body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
-h2{color:#00e5a0}
-.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
-input,button{padding:12px;border:0;border-radius:8px;margin:5px 0}
-input{background:#202b3c;color:white;width:90%}
-button{background:#00c98b;color:#06120e;font-weight:bold}
-.good{color:#00e5a0}.bad{color:#ff6374}
+body{background:#080b12;color:#e8edf5;font-family:Arial;padding:16px}
+h1{color:#35e6a0}
+.card{background:#121a27;border:1px solid #263449;border-radius:12px;padding:16px;margin:12px 0}
+.value{font-size:27px;font-weight:bold;margin-top:8px}
+.green{color:#35e6a0}.red{color:#ff6875}
+.small{color:#91a2b8;font-size:13px}
+.item{padding:12px 0;border-bottom:1px solid #263449;font-size:13px}
+button{background:#16bd7b;color:#06130d;border:0;padding:12px 18px;border-radius:8px;font-weight:bold}
 </style>
 </head>
 <body>
-<h2>GROK BOT — PERFORMANCE v1.3</h2>
-<p>Paper Trading Statistics</p>
+<h1>GROK BOT PERFORMANCE</h1>
+<p class="small">Statistik PAPER TRADING dari engine.html</p>
+
+<div class="card">TOTAL TRADES<div class="value" id="total">0</div></div>
+<div class="card">WIN RATE<div class="value green" id="winrate">0%</div></div>
+<div class="card">TOTAL PROFIT / LOSS<div class="value" id="pnl">$0.00</div></div>
+<div class="card">WIN / LOSS<div class="value" id="wl">0 / 0</div></div>
+<div class="card">OPEN POSITIONS<div class="value" id="open">0</div></div>
 
 <div class="card">
-<h3>Tambah Hasil Simulasi</h3>
-<input id="token" placeholder="Nama token">
-<input id="pnl" type="number" step="any" placeholder="Profit / Loss USD">
-<button onclick="add()">SIMPAN HASIL</button>
+<b>RIWAYAT TRANSAKSI</b>
+<div id="history">Belum ada transaksi.</div>
 </div>
 
-<div class="card">
-<h3>Statistik</h3>
-<p>Total transaksi: <b id="total">0</b></p>
-<p>Profit: <b class="good" id="profit">$0.00</b></p>
-<p>Loss: <b class="bad" id="loss">$0.00</b></p>
-<p>Net PnL: <b id="net">$0.00</b></p>
-<p>Win rate: <b id="winrate">0%</b></p>
-</div>
-
-<div class="card">
-<h3>Riwayat Simulasi</h3>
-<div id="history">Belum ada hasil.</div>
-</div>
+<button onclick="loadStats()">REFRESH DATA</button>
 
 <script>
-const KEY='grokPerformance';
-function get(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
-function add(){
- const token=document.getElementById('token').value.trim();
- const pnl=Number(document.getElementById('pnl').value);
- if(!token||document.getElementById('pnl').value===''||!Number.isFinite(pnl)){
-  alert('Isi nama token dan hasil PnL');return;
- }
- const data=get();
- data.unshift({token,pnl,time:new Date().toLocaleString('id-ID')});
- localStorage.setItem(KEY,JSON.stringify(data));
- document.getElementById('token').value='';
- document.getElementById('pnl').value='';
- render();
+function money(n){
+ return "$"+Number(n||0).toFixed(2);
 }
-function render(){
- const data=get();
- const wins=data.filter(x=>x.pnl>0).length;
- const profit=data.filter(x=>x.pnl>0).reduce((s,x)=>s+x.pnl,0);
- const loss=data.filter(x=>x.pnl<0).reduce((s,x)=>s+x.pnl,0);
- const net=profit+loss;
- document.getElementById('total').textContent=data.length;
- document.getElementById('profit').textContent='$'+profit.toFixed(2);
- document.getElementById('loss').textContent='$'+loss.toFixed(2);
- document.getElementById('net').textContent=(net<0?'-$':'$')+Math.abs(net).toFixed(2);
- document.getElementById('net').className=net>=0?'good':'bad';
- document.getElementById('winrate').textContent=(data.length?wins/data.length*100:0).toFixed(1)+'%';
- const box=document.getElementById('history');
- box.innerHTML='';
- if(!data.length){box.textContent='Belum ada hasil.';return;}
- data.forEach(x=>{
-  const div=document.createElement('div');
-  div.className='card';
-  div.textContent=x.time+' | '+x.token+' | '+(x.pnl>=0?'+':'')+'$'+x.pnl.toFixed(2);
-  box.appendChild(div);
- });
+function safe(s){
+ return String(s||"UNKNOWN").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[c]));
 }
-render();
+function loadStats(){
+ let trades=[];
+ let state={};
+ try{
+  trades=JSON.parse(localStorage.getItem("grokTrades")||"[]");
+  state=JSON.parse(localStorage.getItem("grokEngineState")||"{}");
+ }catch(e){}
+
+ const sells=trades.filter(t=>t.type==="SELL");
+ const wins=sells.filter(t=>Number(t.pnl)>0);
+ const losses=sells.filter(t=>Number(t.pnl)<=0);
+ const pnl=sells.reduce((sum,t)=>sum+Number(t.pnl||0),0);
+ const rate=sells.length?(wins.length/sells.length*100):0;
+
+ document.getElementById("total").textContent=sells.length;
+ document.getElementById("winrate").textContent=rate.toFixed(1)+"%";
+ document.getElementById("pnl").textContent=money(pnl);
+ document.getElementById("pnl").className="value "+(pnl>=0?"green":"red");
+ document.getElementById("wl").textContent=wins.length+" / "+losses.length;
+ document.getElementById("open").textContent=(state.positions||[]).length;
+
+ const h=document.getElementById("history");
+ h.innerHTML=trades.length?trades.slice().reverse().map(t=>
+ `<div class="item"><b class="${t.type==="SELL"?(t.pnl>0?"green":"red"):""}">${safe(t.type)} — ${safe(t.symbol)}</b><br>
+ ${safe(t.reason)}<br>
+ Harga: ${safe(t.price)}<br>
+ ${t.type==="SELL"?"P/L: "+money(t.pnl):""}<br>
+ <span class="small">${safe(t.time)}</span></div>`
+ ).join(""):"Belum ada transaksi.";
+}
+loadStats();
 </script>
 </body>
 </html>
