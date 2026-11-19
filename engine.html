@@ -136,8 +136,45 @@ function logTrade(type,data){
   price:data.price,
   pnl:data.pnl||0,
   reason:data.reason||"",
-  time:new Date().toLocaleString("id-ID")
+  time:new Date().toLocaleString("id-ID"),
+timestamp:Date.now()
  });
+ 
+function getTodayTrades(){
+ const today=new Date().toLocaleDateString("id-ID");
+ return trades.filter(t=>
+  t.timestamp &&
+  new Date(t.timestamp).toLocaleDateString("id-ID")===today
+ );
+}
+
+function checkRiskProtection(){
+ const today=getTodayTrades();
+
+ const dailyBuys=today.filter(t=>t.type==="BUY").length;
+ const realized=today
+  .filter(t=>t.type==="SELL")
+  .reduce((sum,t)=>sum+Number(t.pnl||0),0);
+
+ const floating=positions.reduce(
+  (sum,p)=>sum+Number(p.pnl||0),0
+ );
+
+ const dailyPnL=realized+floating;
+ const maxLoss=Number(document.getElementById("dailyLoss").value||5);
+ const maxBuys=Number(document.getElementById("maxDailyBuys").value||10);
+
+ if(dailyPnL<=-maxLoss){
+  return "BATAS KERUGIAN HARIAN TERCAPAI";
+ }
+
+ if(dailyBuys>=maxBuys){
+  return "BATAS BUY HARIAN TERCAPAI";
+ }
+
+ return "";
+}
+
  saveData();
  render();
 }
