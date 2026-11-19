@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT SETTINGS</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
+h2{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
+input{box-sizing:border-box;width:100%;padding:13px;margin:8px 0;background:#202b3c;color:white;border:0;border-radius:8px}
+button{padding:13px;background:#00c98b;color:#06120e;border:0;border-radius:8px;font-weight:bold;width:100%;margin-top:10px}
+small{color:#91a0b7}
+</style>
+</head>
+<body>
+<h2>GROK BOT — SETTINGS v1.0</h2>
+<p>Pengaturan simulasi trading</p>
+
+<div class="card">
+<h3>Modal Virtual</h3>
+<input id="capital" type="number" value="50" placeholder="Modal USD">
+<h3>Modal per Posisi</h3>
+<input id="position" type="number" value="2">
+<h3>Take Profit (%)</h3>
+<input id="tp" type="number" value="25">
+<h3>Stop Loss (%)</h3>
+<input id="sl" type="number" value="15">
+<h3>Maksimal Posisi Aktif</h3>
+<input id="max" type="number" value="3">
+<button onclick="save()">SIMPAN PENGATURAN</button>
+<p id="status"><small>Pengaturan awal belum disimpan.</small></p>
+</div>
+
+<div class="card">
+<h3>Pengaturan Tersimpan</h3>
+<div id="result">Belum ada pengaturan.</div>
+</div>
+
+<script>
+function save(){
+ const data={
+  capital:Number(document.getElementById('capital').value),
+  position:Number(document.getElementById('position').value),
+  tp:Number(document.getElementById('tp').value),
+  sl:Number(document.getElementById('sl').value),
+  max:Number(document.getElementById('max').value)
+ };
+ if(Object.values(data).some(v=>!Number.isFinite(v)||v<=0)){
+  alert('Semua nilai harus lebih dari 0');
+  return;
+ }
+ if(data.position>data.capital){
+  alert('Modal per posisi tidak boleh melebihi modal virtual');
+  return;
+ }
+ localStorage.setItem('grokSettings',JSON.stringify(data));
+ document.getElementById('status').textContent='Pengaturan berhasil disimpan di browser ini.';
+ document.getElementById('result').innerHTML=
+  'Modal: $'+data.capital+
+  '<br>Per posisi: $'+data.position+
+  '<br>Take Profit: '+data.tp+'%'+
+  '<br>Stop Loss: '+data.sl+'%'+
+  '<br>Maksimal posisi: '+data.max;
+}
+const old=localStorage.getItem('grokSettings');
+if(old){
+ const d=JSON.parse(old);
+ for(const k in d)document.getElementById(k).value=d[k];
+ save();
+}
+</script>
+</body>
+</html>
