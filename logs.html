@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT LOGS</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
+h2{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:14px;margin:12px 0}
+button{padding:12px;background:#00c98b;color:#06120e;border:0;border-radius:8px;font-weight:bold;margin:5px 0}
+.danger{background:#ff6374}
+small{color:#91a0b7}
+.entry{border-bottom:1px solid #263247;padding:12px 0;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<h2>GROK BOT — LOGS v1.1</h2>
+<p>Activity & Simulation History</p>
+
+<div class="card">
+<b id="total">0 aktivitas</b><br>
+<small>Catatan aktivitas yang dibuat dari halaman ini.</small>
+</div>
+
+<div class="card">
+<button onclick="addTest()">+ TAMBAH CATATAN TES</button>
+<button onclick="exportLogs()">EKSPOR LOG</button>
+<button class="danger" onclick="clearLogs()">HAPUS SEMUA LOG</button>
+</div>
+
+<div class="card">
+<h3>Riwayat Aktivitas</h3>
+<div id="logs">Belum ada aktivitas.</div>
+</div>
+
+<script>
+const KEY='grokBotLogs';
+
+function getLogs(){
+ try{return JSON.parse(localStorage.getItem(KEY)||'[]');}
+ catch(e){return [];}
+}
+
+function saveLogs(data){
+ localStorage.setItem(KEY,JSON.stringify(data));
+ render();
+}
+
+function addTest(){
+ const logs=getLogs();
+ logs.unshift({
+  time:new Date().toLocaleString('id-ID'),
+  message:'Tes sistem GROK BOT berhasil dicatat.'
+ });
+ saveLogs(logs);
+}
+
+function render(){
+ const logs=getLogs();
+ document.getElementById('total').textContent=logs.length+' aktivitas';
+ const box=document.getElementById('logs');
+ box.innerHTML='';
+ if(!logs.length){box.textContent='Belum ada aktivitas.';return;}
+ logs.forEach(log=>{
+  const div=document.createElement('div');
+  div.className='entry';
+  const time=document.createElement('small');
+  time.textContent=log.time;
+  const msg=document.createElement('div');
+  msg.textContent=log.message;
+  div.append(time,msg);
+  box.appendChild(div);
+ });
+}
+
+function exportLogs(){
+ const blob=new Blob([JSON.stringify(getLogs(),null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;
+ a.download='grok-bot-logs.json';
+ a.click();
+ URL.revokeObjectURL(url);
+}
+
+function clearLogs(){
+ if(!confirm('Yakin ingin menghapus semua log?'))return;
+ localStorage.removeItem(KEY);
+ render();
+}
+render();
+</script>
+</body>
+</html>
