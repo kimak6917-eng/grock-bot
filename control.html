@@ -4,44 +4,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GROK BOT CONTROL</title>
+<title>GROK BOT CONTROL CENTER</title>
 <style>
-body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
-h2{color:#00e5a0}
-.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
-a{display:block;color:#00e5a0;text-decoration:none;padding:12px;border-bottom:1px solid #263247}
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#080b12;color:#e8edf7;font-family:Arial,sans-serif}
+h1{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:14px;padding:16px;margin:14px 0}
+a{display:block;padding:14px;margin:7px 0;background:#1b2637;border-radius:9px;color:#00e5a0;text-decoration:none;font-weight:bold}
+a:active{background:#263b50}
 small{color:#91a0b7}
+.status{color:#00e5a0}
 </style>
 </head>
 <body>
-<h2>GROK BOT — CONTROL v1.2</h2>
-<p>Agent Navigation Center</p>
+<h1>GROK BOT</h1>
+<p>CONTROL CENTER v1.4</p>
 
 <div class="card">
 <h3>MAIN SYSTEM</h3>
-<a href="./index.html">MAIN DASHBOARD →</a>
-<a href="./settings.html">SETTINGS →</a>
-<a href="./logs.html">ACTIVITY LOGS →</a>
+<a href="./index.html">MAIN DASHBOARD</a>
+<a href="./settings.html">SETTINGS</a>
+<a href="./logs.html">ACTIVITY LOGS</a>
+<a href="./performance.html">PERFORMANCE</a>
 </div>
 
 <div class="card">
-<h3>AI AGENTS</h3>
-<a href="./feed.html">FEED AGENT →</a>
-<a href="./rank.html">RANK AGENT →</a>
-<a href="./surge.html">SURGE AGENT →</a>
-<a href="./alpha.html">ALPHA AGENT →</a>
-<a href="./copy.html">COPY WALLET MONITOR →</a>
-<a href="./hold.html">HOLD MONITOR →</a>
-<a href="./whale.html">WHALE MONITOR →</a>
-<a href="./dev.html">DEV MONITOR →</a>
+<h3>AGENT SYSTEM</h3>
+<a href="./feed.html">01 — FEED AGENT</a>
+<a href="./rank.html">02 — RANK AGENT</a>
+<a href="./surge.html">03 — SURGE AGENT</a>
+<a href="./alpha.html">04 — ALPHA AGENT</a>
+<a href="./copy.html">05 — COPY WALLET MONITOR</a>
+<a href="./hold.html">06 — HOLD MONITOR</a>
+<a href="./whale.html">07 — WHALE MONITOR</a>
+<a href="./dev.html">08 — DEV MONITOR</a>
 </div>
 
 <div class="card">
-<h3>SYSTEM INFORMATION</h3>
-<p>Version: 1.2</p>
+<h3>SYSTEM STATUS</h3>
+<p class="status">● FRONTEND ONLINE</p>
 <p>Mode: PAPER TRADING</p>
 <p>Virtual Capital: $50</p>
-<small>Halaman ini hanya menghubungkan navigasi. Agent masih berjalan secara terpisah dan belum menjadi satu sistem trading otomatis.</small>
+<small>Ini adalah pusat navigasi. Modul-modul belum terhubung menjadi satu mesin trading otomatis. Tidak ada transaksi uang sungguhan.</small>
 </div>
 </body>
 </html>
+
