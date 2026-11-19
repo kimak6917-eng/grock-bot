@@ -234,14 +234,7 @@ async function getPrice(mint){
  }catch(e){return null;}
 }
 
-async function considerToken(data){
-  const riskStop=checkRiskProtection();
-
- if(riskStop){
-  document.getElementById("feed").textContent=
-   "RISK PROTECTION: "+riskStop;
-  return;
- }
+async function considerToken(data)
  const mint=data.mint;
  if(!mint||seen.has(mint)||!running)return;
  seen.add(mint);
