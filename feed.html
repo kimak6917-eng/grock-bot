@@ -1,1 +1,67 @@
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROK BOT - Solana Feed</title>
+<style>
+body{background:#080b12;color:#fff;font-family:Arial;padding:18px}
+h1{color:#00e5a0}
+.status{color:#ffc857;margin:12px 0}
+.card{background:#151c29;padding:14px;margin:12px 0;border-radius:12px}
+small{color:#9ca9bd}
+</style>
+</head>
+<body>
+<h1>GROK BOT</h1>
+<h3>Solana Live Feed</h3>
+<div class="status" id="status">Menghubungkan...</div>
+<div id="feed"></div>
+<script>
+const statusBox=document.getElementById("status");
+const feed=document.getElementById("feed");
+let socket;
+let count=0;
+
+function connect(){
+ socket=new WebSocket("wss://pumpportal.fun/api/data");
+
+ socket.onopen=()=>{
+  statusBox.textContent="TERHUBUNG - Menunggu token baru";
+  socket.send(JSON.stringify({method:"subscribeNewToken"}));
+ };
+
+ socket.onmessage=(event)=>{
+  let data;
+  try{data=JSON.parse(event.data)}catch(e){return}
+  if(!data.mint)return;
+
+  count++;
+  const card=document.createElement("div");
+  card.className="card";
+  const name=document.createElement("b");
+  name.textContent=data.name||"Token baru";
+  const symbol=document.createElement("p");
+  symbol.textContent=data.symbol||"-";
+  const address=document.createElement("small");
+  address.textContent="Mint: "+data.mint;
+  card.append(name,symbol,address);
+  feed.prepend(card);
+  if(feed.children.length>30)feed.lastChild.remove();
+ };
+
+ socket.onerror=()=>{
+  statusBox.textContent="Koneksi mengalami masalah";
+ };
+
+ socket.onclose=()=>{
+  statusBox.textContent="Terputus. Mencoba menghubungkan ulang...";
+  setTimeout(connect,5000);
+ };
+}
+connect();
+</script>
+</body>
+</html>
+
