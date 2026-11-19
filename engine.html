@@ -3,56 +3,63 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GROK BOT ENGINE v3.0</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT SCALPING v4.0</title>
 <style>
-body{background:#080b12;color:#e8edf5;font-family:Arial;padding:16px;margin:0}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#080b12;color:#e8edf5;font-family:Arial}
 h1{color:#35e6a0}
 .card{background:#121a27;border:1px solid #263449;border-radius:12px;padding:15px;margin:12px 0}
-button{background:#16bd7b;color:#06130d;border:0;padding:13px 20px;border-radius:8px;font-weight:bold;margin:5px}
+button{background:#16bd7b;color:#06130d;border:0;border-radius:8px;padding:13px 18px;font-weight:bold;margin:5px 3px}
 .stop{background:#e64d5b;color:white}
-.small{color:#91a2b8;font-size:13px}
+.reset{background:#536176;color:white}
+input{background:#080b12;color:white;border:1px solid #34445b;border-radius:6px;padding:10px;width:100px}
+.small{color:#91a2b8;font-size:12px}
 .green{color:#35e6a0}
 .red{color:#ff6875}
-input{background:#080b12;color:white;border:1px solid #34445b;padding:10px;width:90px;border-radius:6px}
-.item{border-bottom:1px solid #263449;padding:10px 0;font-size:13px;overflow-wrap:anywhere}
+.item{border-bottom:1px solid #263449;padding:11px 0;font-size:13px;overflow-wrap:anywhere}
+.value{font-size:25px;font-weight:bold}
 </style>
 </head>
 <body>
-<h1>GROK BOT ENGINE v3.0</h1>
-<p class="small">PAPER TRADING ONLY — Tidak menggunakan uang sungguhan.</p>
+
+<h1>GROK BOT v4.0</h1>
+<p class="small">FAST SCALPING · PAPER TRADING · VIRTUAL CAPITAL</p>
 
 <div class="card">
 <b>ENGINE STATUS</b>
 <h2 id="status" class="red">STOPPED</h2>
 <button onclick="startEngine()">START ENGINE</button>
-<button class="stop" onclick="stopEngine()">STOP</button>
+<button class="stop" onclick="stopEngine()">STOP ENGINE</button>
+<p id="connection" class="small">Belum terhubung.</p>
 </div>
 
 <div class="card">
 <b>VIRTUAL BALANCE</b>
-<h2 id="balance">$50.00</h2>
-<p class="small">Modal simulasi awal: $50</p>
+<div class="value" id="balance">$50.00</div>
+<p class="small">Modal simulasi awal $50</p>
 </div>
 
 <div class="card">
-<b>SETTINGS</b><br><br>
-Ukuran BUY ($):
-<input id="buySize" type="number" value="2" min="0.1" step="0.1"><br><br>
-Take Profit (%):
-<input id="tp" type="number" value="25"><br><br>
-Stop Loss (%):
-<input id="sl" type="number" value="15"><br><br>
-Maksimal posisi:
-<input id="maxPos" type="number" value="3" min="1">
-</div>
-<br><br>
-Batas rugi harian ($):
-<input id="dailyLoss" type="number" value="5" min="1">
+<b>SCALPING SETTINGS</b>
+<p>BUY amount ($)</p>
+<input id="buySize" type="number" value="2" min="0.1" step="0.1">
 
-<br><br>
-Maksimal BUY per hari:
-<input id="maxDailyBuys" type="number" value="10" min="1">
+<p>Take Profit (%)</p>
+<input id="tp" type="number" value="10" min="0.1" step="0.1">
+
+<p>Stop Loss (%)</p>
+<input id="sl" type="number" value="7" min="0.1" step="0.1">
+
+<p>Maksimal posisi bersamaan</p>
+<input id="maxPos" type="number" value="3" min="1">
+
+<p>Minimal likuiditas ($)</p>
+<input id="minLiquidity" type="number" value="1000" min="0">
+
+<p class="small">Tidak ada batas pembelian harian atau batas kerugian harian. Maksimal posisi bersamaan tetap berlaku.</p>
+</div>
+
 <div class="card">
 <b>OPEN POSITIONS</b>
 <div id="positions">Belum ada posisi.</div>
@@ -65,36 +72,55 @@ Maksimal BUY per hari:
 
 <div class="card">
 <b>LIVE FEED</b>
-<div id="feed">Belum terhubung.</div>
+<div id="feed">Menunggu engine dimulai.</div>
+</div>
+
+<div class="card">
+<button class="reset" onclick="resetData()">RESET DATA SIMULASI</button>
+<p class="small">Reset menghapus saldo dan riwayat simulasi GROK BOT, bukan file atau halaman lainnya.</p>
 </div>
 
 <script>
 const TRADE_KEY="grokTrades";
 const STATE_KEY="grokEngineState";
+const V4_KEY="grokV4State";
+const INIT_KEY="grokV4Initialized";
 
-let ws=null;
-let running=false;
 let balance=50;
 let positions=[];
 let trades=[];
+let ws=null;
+let running=false;
+let timer=null;
+let busy=new Set();
 let seen=new Set();
 
-function loadData(){
+function initialize(){
+ if(localStorage.getItem(INIT_KEY)!=="yes"){
+  localStorage.removeItem(TRADE_KEY);
+  localStorage.removeItem(STATE_KEY);
+  localStorage.removeItem(V4_KEY);
+  localStorage.setItem(INIT_KEY,"yes");
+ }
  try{
-  const s=JSON.parse(localStorage.getItem(STATE_KEY)||"{}");
-  balance=Number(s.balance??50);
-  positions=Array.isArray(s.positions)?s.positions:[];
+  const s=JSON.parse(localStorage.getItem(V4_KEY)||"null");
+  if(s){
+   balance=Number(s.balance??50);
+   positions=Array.isArray(s.positions)?s.positions:[];
+  }
   trades=JSON.parse(localStorage.getItem(TRADE_KEY)||"[]");
  }catch(e){
-  balance=50;positions=[];trades=[];
+  balance=50;
+  positions=[];
+  trades=[];
  }
  render();
 }
 
-function saveData(){
- localStorage.setItem(STATE_KEY,JSON.stringify({
-  balance,positions
- }));
+function save(){
+ const state={balance,positions};
+ localStorage.setItem(V4_KEY,JSON.stringify(state));
+ localStorage.setItem(STATE_KEY,JSON.stringify(state));
  localStorage.setItem(TRADE_KEY,JSON.stringify(trades));
 }
 
@@ -102,224 +128,268 @@ function money(n){
  return "$"+Number(n||0).toFixed(2);
 }
 
-function render(){
- document.getElementById("balance").textContent=money(balance);
-
- const p=document.getElementById("positions");
- p.innerHTML=positions.length?positions.map(x=>
- `<div class="item"><b>${safe(x.symbol)}</b><br>
- Entry: ${x.entryPrice}<br>
- Current: ${x.price}<br>
- P/L: <span class="${x.pnl>=0?'green':'red'}">${money(x.pnl)}</span></div>`
- ).join(""):"Belum ada posisi.";
-
- const h=document.getElementById("history");
- h.innerHTML=trades.length?trades.slice().reverse().slice(0,30).map(t=>
- `<div class="item"><b class="${t.type==='SELL'?'green':''}">${t.type}</b> — ${safe(t.symbol)}<br>
- ${t.reason||"Pembelian virtual"}<br>
- ${t.time}<br>
- ${t.type==='SELL'?'P/L: '+money(t.pnl):'Harga: '+t.price}</div>`
- ).join(""):"Belum ada transaksi.";
-}
-
 function safe(s){
- return String(s||"UNKNOWN").replace(/[&<>"']/g,c=>({
- "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ return String(s??"").replace(/[&<>"']/g,c=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
  }[c]));
 }
 
-function logTrade(type,data){
+function render(){
+ document.getElementById("balance").textContent=money(balance);
+
+ document.getElementById("positions").innerHTML=positions.length?
+ positions.map(p=>`
+ <div class="item">
+ <b>${safe(p.symbol)}</b><br>
+ Entry: ${p.entryPrice}<br>
+ Current: ${p.price}<br>
+ P/L: <span class="${p.pnl>=0?"green":"red"}">${money(p.pnl)}</span>
+ <br><button class="stop" onclick="manualSell('${safe(p.mint)}')">SELL VIRTUAL</button>
+ </div>`).join(""):"Belum ada posisi.";
+
+ document.getElementById("history").innerHTML=trades.length?
+ trades.slice().reverse().slice(0,30).map(t=>`
+ <div class="item">
+ <b>${safe(t.type)} — ${safe(t.symbol)}</b><br>
+ ${safe(t.reason)}<br>
+ Harga: ${safe(t.price)}<br>
+ ${t.type==="SELL"?"P/L: "+money(t.pnl):""}<br>
+ <span class="small">${safe(t.time)}</span>
+ </div>`).join(""):"Belum ada transaksi.";
+}
+
+function logTrade(type,p,reason,pnl=0){
  trades.push({
   type,
-  symbol:data.symbol,
-  mint:data.mint,
-  price:data.price,
-  pnl:data.pnl||0,
-  reason:data.reason||"",
+  symbol:p.symbol,
+  mint:p.mint,
+  price:p.price,
+  pnl,
+  reason,
   time:new Date().toLocaleString("id-ID"),
-timestamp:Date.now()
+  timestamp:Date.now()
  });
- 
-function getTodayTrades(){
- const today=new Date().toLocaleDateString("id-ID");
- return trades.filter(t=>
-  t.timestamp &&
-  new Date(t.timestamp).toLocaleDateString("id-ID")===today
- );
-}
-
-function checkRiskProtection(){
- const today=getTodayTrades();
-
- const dailyBuys=today.filter(t=>t.type==="BUY").length;
- const realized=today
-  .filter(t=>t.type==="SELL")
-  .reduce((sum,t)=>sum+Number(t.pnl||0),0);
-
- const floating=positions.reduce(
-  (sum,p)=>sum+Number(p.pnl||0),0
- );
-
- const dailyPnL=realized+floating;
- const maxLoss=Number(document.getElementById("dailyLoss").value||5);
- const maxBuys=Number(document.getElementById("maxDailyBuys").value||10);
-
- if(dailyPnL<=-maxLoss){
-  return "BATAS KERUGIAN HARIAN TERCAPAI";
- }
-
- if(dailyBuys>=maxBuys){
-  return "BATAS BUY HARIAN TERCAPAI";
- }
-
- return "";
-}
-
- saveData();
+ save();
  render();
 }
 
-function startEngine(){
- if(running)return;
- running=true;
- document.getElementById("status").textContent="RUNNING";
- document.getElementById("status").className="green";
- document.getElementById("feed").textContent="Menghubungkan PumpPortal...";
- ws=new WebSocket("wss://pumpportal.fun/api/data");
-
- ws.onopen=()=>{
-  if(!running)return;
-  ws.send(JSON.stringify({method:"subscribeNewToken"}));
-  document.getElementById("feed").textContent="Terhubung. Menunggu token baru...";
- };
-
- ws.onmessage=async event=>{
-  try{
-   const data=JSON.parse(event.data);
-   if(data.mint) await considerToken(data);
-  }catch(e){}
- };
-
- ws.onerror=()=>{
-  document.getElementById("feed").textContent="Koneksi mengalami masalah.";
- };
-
- ws.onclose=()=>{
-  if(running){
-   document.getElementById("feed").textContent="Koneksi terputus. Tekan START untuk mencoba lagi.";
-   running=false;
-   document.getElementById("status").textContent="DISCONNECTED";
-   document.getElementById("status").className="red";
-  }
- };
-}
-
-function stopEngine(){
- running=false;
- if(ws){ws.close();ws=null;}
- document.getElementById("status").textContent="STOPPED";
- document.getElementById("status").className="red";
- document.getElementById("feed").textContent="Engine dihentikan.";
-}
-
-async function getPrice(mint){
+async function getMarket(mint){
  try{
-  const r=await fetch("https://api.dexscreener.com/latest/dex/tokens/"+encodeURIComponent(mint));
-  const j=await r.json();
-  if(!j.pairs||!j.pairs.length)return null;
-  const pairs=j.pairs.filter(x=>x.chainId==="solana"&&Number(x.priceUsd)>0);
+  const response=await fetch(
+   "https://api.dexscreener.com/latest/dex/tokens/"+encodeURIComponent(mint)
+  );
+  if(!response.ok)return null;
+  const data=await response.json();
+  if(!Array.isArray(data.pairs))return null;
+
+  const pairs=data.pairs.filter(p=>
+   p.chainId==="solana" &&
+   Number(p.priceUsd)>0
+  );
+
   if(!pairs.length)return null;
-  pairs.sort((a,b)=>Number(b.liquidity?.usd||0)-Number(a.liquidity?.usd||0));
-  return Number(pairs[0].priceUsd);
- }catch(e){return null;}
+
+  pairs.sort((a,b)=>
+   Number(b.liquidity?.usd||0)-Number(a.liquidity?.usd||0)
+  );
+
+  const pair=pairs[0];
+  return {
+   price:Number(pair.priceUsd),
+   liquidity:Number(pair.liquidity?.usd||0)
+  };
+ }catch(e){
+  return null;
+ }
 }
 
-async function considerToken(data)
+async function considerToken(data){
  const mint=data.mint;
- if(!mint||seen.has(mint)||!running)return;
+ if(!running||!mint||seen.has(mint)||busy.has(mint))return;
+
  seen.add(mint);
 
- const symbol=data.symbol||"TOKEN";
- document.getElementById("feed").textContent="Memeriksa "+symbol+"...";
-
- if(positions.length>=Number(document.getElementById("maxPos").value||3))return;
+ if(positions.length>=Number(document.getElementById("maxPos").value||3)){
+  return;
+ }
 
  const size=Number(document.getElementById("buySize").value||2);
  if(size<=0||balance<size)return;
 
- const price=await getPrice(mint);
- if(!price||!running)return;
+ busy.add(mint);
+ document.getElementById("feed").textContent=
+  "Memeriksa token "+(data.symbol||mint)+"...";
 
- if(positions.some(x=>x.mint===mint))return;
+ const market=await getMarket(mint);
+ busy.delete(mint);
 
- const position={
+ if(!running||!market)return;
+
+ const minLiquidity=Number(
+  document.getElementById("minLiquidity").value||0
+ );
+
+ if(market.liquidity<minLiquidity){
+  document.getElementById("feed").textContent=
+   "Token dilewati: likuiditas terlalu rendah.";
+  return;
+ }
+
+ if(positions.length>=Number(document.getElementById("maxPos").value||3))return;
+ if(balance<size)return;
+ if(positions.some(p=>p.mint===mint))return;
+
+ const p={
   mint,
-  symbol,
-  entryPrice:price,
-  price,
+  symbol:data.symbol||"TOKEN",
+  entryPrice:market.price,
+  price:market.price,
   amount:size,
-  quantity:size/price,
-  pnl:0,
-  openedAt:Date.now()
+  quantity:size/market.price,
+  pnl:0
  };
 
  balance-=size;
- positions.push(position);
- logTrade("BUY",{
-  symbol,mint,price,
-  reason:"Simulasi pembelian otomatis"
- });
- render();
+ positions.push(p);
+ logTrade("BUY",p,"AUTO BUY VIRTUAL");
+ document.getElementById("feed").textContent=
+  "BUY virtual berhasil: "+p.symbol;
 }
 
 async function updatePrices(){
  if(!running)return;
 
  for(const p of [...positions]){
-  const price=await getPrice(p.mint);
-  if(!price)continue;
+  const market=await getMarket(p.mint);
+  if(!market)continue;
 
-  p.price=price;
-  p.pnl=(price-p.entryPrice)*p.quantity;
+  p.price=market.price;
+  p.pnl=(p.price-p.entryPrice)*p.quantity;
 
-  const change=((price-p.entryPrice)/p.entryPrice)*100;
-  const tp=Number(document.getElementById("tp").value||25);
-  const sl=Number(document.getElementById("sl").value||15);
+  const change=(p.price/p.entryPrice-1)*100;
+  const tp=Number(document.getElementById("tp").value||10);
+  const sl=Number(document.getElementById("sl").value||7);
 
   if(change>=tp){
-   closePosition(p,"TAKE PROFIT");
+   sellPosition(p,"AUTO TAKE PROFIT");
   }else if(change<=-sl){
-   closePosition(p,"STOP LOSS");
+   sellPosition(p,"AUTO STOP LOSS");
   }
  }
- saveData();
+
+ save();
  render();
 }
 
-function closePosition(p,reason){
- const i=positions.findIndex(x=>x.mint===p.mint);
- if(i<0)return;
+function sellPosition(p,reason){
+ const index=positions.findIndex(x=>x.mint===p.mint);
+ if(index<0)return;
 
- const current=positions[i];
+ const current=positions[index];
  const proceeds=current.quantity*current.price;
  const pnl=proceeds-current.amount;
+
  balance+=proceeds;
+ positions.splice(index,1);
 
- logTrade("SELL",{
-  symbol:current.symbol,
-  mint:current.mint,
-  price:current.price,
-  pnl,
-  reason
- });
-
- positions.splice(i,1);
- saveData();
- render();
+ logTrade("SELL",current,reason,pnl);
+ document.getElementById("feed").textContent=
+  "SELL virtual: "+current.symbol+" | "+money(pnl);
 }
 
-setInterval(updatePrices,15000);
-loadData();
+function manualSell(mint){
+ const p=positions.find(x=>x.mint===mint);
+ if(p)sellPosition(p,"MANUAL SELL VIRTUAL");
+}
+
+function startEngine(){
+ if(running)return;
+
+ running=true;
+ document.getElementById("status").textContent="RUNNING";
+ document.getElementById("status").className="green";
+ document.getElementById("connection").textContent="Menghubungkan PumpPortal...";
+
+ try{
+  ws=new WebSocket("wss://pumpportal.fun/api/data");
+
+  ws.onopen=()=>{
+   if(!running)return;
+   ws.send(JSON.stringify({method:"subscribeNewToken"}));
+   document.getElementById("connection").textContent=
+    "Terhubung. Menunggu token baru...";
+   document.getElementById("feed").textContent=
+    "LIVE FEED aktif.";
+  };
+
+  ws.onmessage=event=>{
+   try{
+    const data=JSON.parse(event.data);
+    if(data.mint)considerToken(data);
+   }catch(e){}
+  };
+
+  ws.onerror=()=>{
+   document.getElementById("connection").textContent=
+    "Koneksi mengalami masalah.";
+  };
+
+  ws.onclose=()=>{
+   if(running){
+    running=false;
+    clearInterval(timer);
+    document.getElementById("status").textContent="DISCONNECTED";
+    document.getElementById("status").className="red";
+    document.getElementById("connection").textContent=
+     "Koneksi terputus. Tekan START untuk mencoba lagi.";
+   }
+  };
+
+  timer=setInterval(updatePrices,10000);
+
+ }catch(e){
+  running=false;
+  document.getElementById("status").textContent="ERROR";
+  document.getElementById("connection").textContent=
+   "Gagal membuat koneksi.";
+ }
+}
+
+function stopEngine(){
+ running=false;
+ clearInterval(timer);
+ timer=null;
+ if(ws){
+  ws.close();
+  ws=null;
+ }
+ document.getElementById("status").textContent="STOPPED";
+ document.getElementById("status").className="red";
+ document.getElementById("connection").textContent="Engine dihentikan.";
+}
+
+function resetData(){
+ if(running){
+  alert("STOP ENGINE terlebih dahulu.");
+  return;
+ }
+ if(!confirm("Hapus semua saldo dan riwayat simulasi GROK BOT?"))return;
+
+ balance=50;
+ positions=[];
+ trades=[];
+ seen.clear();
+ busy.clear();
+
+ localStorage.removeItem(TRADE_KEY);
+ localStorage.removeItem(STATE_KEY);
+ localStorage.removeItem(V4_KEY);
+ save();
+ render();
+ document.getElementById("feed").textContent="Data simulasi direset.";
+}
+
+initialize();
 </script>
 </body>
 </html>
