@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROK BOT HOLD</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial,sans-serif;padding:18px}
+h2{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
+input,button{padding:12px;border-radius:8px;border:0;margin:5px 0}
+input{background:#202b3c;color:white;width:90%}
+button{background:#00c98b;color:#06120e;font-weight:bold}
+small{color:#91a0b7}
+.good{color:#00e5a0}.bad{color:#ff6374}
+</style>
+</head>
+<body>
+<h2>GROK BOT — HOLD v0.7</h2>
+<p>Virtual Position Monitor</p>
+
+<div class="card">
+<h3>Tambah Posisi Simulasi</h3>
+<input id="token" placeholder="Nama token, contoh: BONK">
+<input id="entry" type="number" placeholder="Harga beli simulasi">
+<input id="amount" type="number" placeholder="Modal virtual USD" value="2">
+<button onclick="addPosition()">TAMBAH POSISI</button>
+<small>Hanya simulasi. Tidak membeli token sungguhan.</small>
+</div>
+
+<div class="card">
+<h3>Pengaturan</h3>
+<label>Take Profit (%)</label><br>
+<input id="tp" type="number" value="25"><br>
+<label>Stop Loss (%)</label><br>
+<input id="sl" type="number" value="15">
+</div>
+
+<div class="card">
+<h3>Daftar Posisi</h3>
+<div id="positions">Belum ada posisi.</div>
+</div>
+
+<script>
+let positions=[];
+
+function addPosition(){
+ const token=document.getElementById('token').value.trim().toUpperCase();
+ const entry=Number(document.getElementById('entry').value);
+ const amount=Number(document.getElementById('amount').value);
+ if(!token||entry<=0||amount<=0){alert('Isi semua data dengan benar');return;}
+ positions.push({token,entry,price:entry,amount,status:'AKTIF'});
+ document.getElementById('token').value='';
+ document.getElementById('entry').value='';
+ render();
+}
+
+function render(){
+ const box=document.getElementById('positions');
+ if(!positions.length){box.textContent='Belum ada posisi.';return;}
+ box.innerHTML='';
+ positions.forEach((p,i)=>{
+  const pnl=((p.price-p.entry)/p.entry)*100;
+  const tp=Number(document.getElementById('tp').value)||25;
+  const sl=Number(document.getElementById('sl').value)||15;
+  if(p.status==='AKTIF'&&pnl>=tp)p.status='TARGET TERCAPAI';
+  if(p.status==='AKTIF'&&pnl<=-sl)p.status='STOP LOSS TERCAPAI';
+  const item=document.createElement('div');
+  item.className='card';
+  item.innerHTML=`<b>${p.token}</b><br>
+  Harga masuk: $${p.entry}<br>
+  Harga simulasi: $${p.price}<br>
+  Modal virtual: $${p.amount}<br>
+  PnL: <span class="${pnl>=0?'good':'bad'}">${pnl.toFixed(2)}%</span><br>
+  Status: ${p.status}<br>
+  <input type="number" id="price${i}" placeholder="Masukkan harga simulasi terbaru"><br>
+  <button onclick="updatePrice(${i})">UPDATE HARGA</button>
+  <button onclick="removePosition(${i})">HAPUS</button>`;
+  box.appendChild(item);
+ });
+}
+
+function updatePrice(i){
+ const value=Number(document.getElementById('price'+i).value);
+ if(value<=0){alert('Masukkan harga yang benar');return;}
+ positions[i].price=value;
+ render();
+}
+
+function removePosition(i){positions.splice(i,1);render();}
+</script>
+</body>
+</html>
