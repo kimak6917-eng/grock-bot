@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT RISK MANAGER</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
+h2{color:#ffbd59}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:15px;margin:12px 0}
+input,button{box-sizing:border-box;width:100%;padding:12px;margin:7px 0;border:0;border-radius:8px}
+input{background:#202b3c;color:white}
+button{background:#ffbd59;color:#171006;font-weight:bold}
+small{color:#91a0b7}
+</style>
+</head>
+<body>
+<h2>GROK BOT — RISK MANAGER v2.2</h2>
+<p>PAPER TRADING RISK CONTROL</p>
+
+<div class="card">
+<h3>Pengaturan Risiko</h3>
+<label>Modal awal virtual ($)</label>
+<input id="capital" type="number" value="50">
+<label>Batas kerugian harian ($)</label>
+<input id="daily" type="number" value="5">
+<label>Maksimal modal per posisi ($)</label>
+<input id="position" type="number" value="2">
+<label>Maksimal posisi aktif</label>
+<input id="max" type="number" value="3">
+<label>Maksimal pembelian per hari</label>
+<input id="buys" type="number" value="10">
+<button onclick="save()">SIMPAN PENGATURAN</button>
+</div>
+
+<div class="card">
+<h3>Status Risk Manager</h3>
+<p id="status">MENUNGGU PENGATURAN</p>
+<p id="summary">Belum ada pengaturan.</p>
+</div>
+
+<script>
+const KEY='grokRiskSettings';
+
+function save(){
+ const d={
+  capital:Number(document.getElementById('capital').value),
+  daily:Number(document.getElementById('daily').value),
+  position:Number(document.getElementById('position').value),
+  max:Number(document.getElementById('max').value),
+  buys:Number(document.getElementById('buys').value)
+ };
+ if(Object.values(d).some(x=>!Number.isFinite(x)||x<=0)){
+  alert('Semua angka harus lebih dari 0');return;
+ }
+ if(d.daily>d.capital||d.position>d.capital){
+  alert('Batas risiko dan posisi tidak boleh melebihi modal');return;
+ }
+ if(!Number.isInteger(d.max)||!Number.isInteger(d.buys)){
+  alert('Jumlah posisi dan pembelian harus bilangan bulat');return;
+ }
+ localStorage.setItem(KEY,JSON.stringify(d));
+ document.getElementById('status').textContent='PENGATURAN TERSIMPAN';
+ document.getElementById('summary').textContent=
+  'Modal: $'+d.capital+
+  ' | Batas rugi harian: $'+d.daily+
+  ' | Per posisi: $'+d.position+
+  ' | Maks posisi: '+d.max+
+  ' | Maks pembelian/hari: '+d.buys;
+}
+
+try{
+ const old=JSON.parse(localStorage.getItem(KEY)||'null');
+ if(old){
+  Object.keys(old).forEach(k=>{
+   if(document.getElementById(k))document.getElementById(k).value=old[k];
+  });
+  save();
+ }
+}catch(e){}
+</script>
+</body>
+</html>
