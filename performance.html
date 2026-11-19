@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT PERFORMANCE</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial;padding:18px}
+h2{color:#00e5a0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0}
+input,button{padding:12px;border:0;border-radius:8px;margin:5px 0}
+input{background:#202b3c;color:white;width:90%}
+button{background:#00c98b;color:#06120e;font-weight:bold}
+.good{color:#00e5a0}.bad{color:#ff6374}
+</style>
+</head>
+<body>
+<h2>GROK BOT — PERFORMANCE v1.3</h2>
+<p>Paper Trading Statistics</p>
+
+<div class="card">
+<h3>Tambah Hasil Simulasi</h3>
+<input id="token" placeholder="Nama token">
+<input id="pnl" type="number" step="any" placeholder="Profit / Loss USD">
+<button onclick="add()">SIMPAN HASIL</button>
+</div>
+
+<div class="card">
+<h3>Statistik</h3>
+<p>Total transaksi: <b id="total">0</b></p>
+<p>Profit: <b class="good" id="profit">$0.00</b></p>
+<p>Loss: <b class="bad" id="loss">$0.00</b></p>
+<p>Net PnL: <b id="net">$0.00</b></p>
+<p>Win rate: <b id="winrate">0%</b></p>
+</div>
+
+<div class="card">
+<h3>Riwayat Simulasi</h3>
+<div id="history">Belum ada hasil.</div>
+</div>
+
+<script>
+const KEY='grokPerformance';
+function get(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}}
+function add(){
+ const token=document.getElementById('token').value.trim();
+ const pnl=Number(document.getElementById('pnl').value);
+ if(!token||document.getElementById('pnl').value===''||!Number.isFinite(pnl)){
+  alert('Isi nama token dan hasil PnL');return;
+ }
+ const data=get();
+ data.unshift({token,pnl,time:new Date().toLocaleString('id-ID')});
+ localStorage.setItem(KEY,JSON.stringify(data));
+ document.getElementById('token').value='';
+ document.getElementById('pnl').value='';
+ render();
+}
+function render(){
+ const data=get();
+ const wins=data.filter(x=>x.pnl>0).length;
+ const profit=data.filter(x=>x.pnl>0).reduce((s,x)=>s+x.pnl,0);
+ const loss=data.filter(x=>x.pnl<0).reduce((s,x)=>s+x.pnl,0);
+ const net=profit+loss;
+ document.getElementById('total').textContent=data.length;
+ document.getElementById('profit').textContent='$'+profit.toFixed(2);
+ document.getElementById('loss').textContent='$'+loss.toFixed(2);
+ document.getElementById('net').textContent=(net<0?'-$':'$')+Math.abs(net).toFixed(2);
+ document.getElementById('net').className=net>=0?'good':'bad';
+ document.getElementById('winrate').textContent=(data.length?wins/data.length*100:0).toFixed(1)+'%';
+ const box=document.getElementById('history');
+ box.innerHTML='';
+ if(!data.length){box.textContent='Belum ada hasil.';return;}
+ data.forEach(x=>{
+  const div=document.createElement('div');
+  div.className='card';
+  div.textContent=x.time+' | '+x.token+' | '+(x.pnl>=0?'+':'')+'$'+x.pnl.toFixed(2);
+  box.appendChild(div);
+ });
+}
+render();
+</script>
+</body>
+</html>
