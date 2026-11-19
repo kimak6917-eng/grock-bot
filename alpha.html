@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GROK BOT - ALPHA</title>
+<style>
+body{background:#080b12;color:white;font-family:Arial;padding:18px}
+h1{color:#00e5a0}
+.status{color:#ffc857}
+.card{background:#151c29;border:1px solid #263448;border-radius:12px;padding:15px;margin:12px 0}
+.score{font-size:28px;color:#00e5a0;font-weight:bold}
+small{color:#9ca9bd;overflow-wrap:anywhere}
+.reason{color:#c1d0e3;font-size:14px}
+</style>
+</head>
+<body>
+<h1>GROK BOT</h1>
+<h3>ALPHA ANALYZER 0.5</h3>
+<div class="status" id="status">Menghubungkan...</div>
+<div id="feed"></div>
+<script>
+const statusBox=document.getElementById("status");
+const feed=document.getElementById("feed");
+const tokens=new Map();
+
+function analyze(d){
+ const buy=Number(d.solAmount||d.initialQuoteAmount||0);
+ const mc=Number(d.marketCapSol||0);
+ let score=0;
+ let reasons=[];
+
+ if(buy>=5){score+=40;reasons.push("Pembelian awal relatif besar")}
+ else if(buy>=2){score+=30;reasons.push("Pembelian awal cukup besar")}
+ else if(buy>=0.5){score+=20;reasons.push("Ada pembelian awal")}
+ else reasons.push("Pembelian awal kecil atau tidak tersedia");
+
+ if(mc>0&&mc<=50){score+=30;reasons.push("Market cap awal relatif rendah")}
+ else if(mc>50&&mc<=100){score+=20;reasons.push("Market cap awal menengah")}
+ else if(mc>100){score+=10;reasons.push("Market cap awal tinggi")}
+ else reasons.push("Market cap tidak tersedia");
+
+ if(d.traderPublicKey){score+=15;reasons.push("Alamat pembuat tersedia")}
+ if(d.uri){score+=15;reasons.push("Metadata token tersedia")}
+
+ return {score:Math.min(100,score),reasons};
+}
+
+function add(d){
+ if(!d.mint||tokens.has(d.mint))return;
+ const result=analyze(d);
+ tokens.set(d.mint,{data:d,...result});
+
+ const sorted=[...tokens.values()].sort((a,b)=>b.score-a.score);
+ feed.innerHTML="";
+
+ sorted.forEach(t=>{
+  const card=document.createElement("div");
+  card.className="card";
+  const title=document.createElement("h3");
+  title.textContent=(t.data.name||"Unknown")+" ("+(t.data.symbol||"-")+")";
+  const score=document.createElement("div");
+  score.className="score";
+  score.textContent=t.score+"/100";
+  const reasons=document.createElement("p");
+  reasons.className="reason";
+  reasons.textContent="Alasan: "+t.reasons.join(" • ");
+  const address=document.createElement("small");
+  address.textContent="Mint: "+t.data.mint;
+  card.append(title,score,reasons,address);
+  feed.appendChild(card);
+ });
+ if(tokens.size>100)tokens.delete(tokens.keys().next().value);
+}
+
+function connect(){
+ const ws=new WebSocket("wss://pumpportal.fun/api/data");
+ ws.onopen=()=>{
+  statusBox.textContent="TERHUBUNG - Menganalisis token";
+  ws.send(JSON.stringify({method:"subscribeNewToken"}));
+ };
+ ws.onmessage=e=>{
+  try{add(JSON.parse(e.data))}catch(err){}
+ };
+ ws.onerror=()=>statusBox.textContent="Koneksi bermasalah";
+ ws.onclose=()=>{
+  statusBox.textContent="Terputus - mencoba kembali...";
+  setTimeout(connect,5000);
+ };
+}
+connect();
+</script>
+</body>
+</html>
