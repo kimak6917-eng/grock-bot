@@ -1,1 +1,120 @@
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROK BOT - RANK</title>
+<style>
+body{margin:0;padding:18px;background:#080b12;color:#fff;font-family:Arial}
+h1{color:#00e5a0}
+.status{color:#ffc857;margin:15px 0}
+.card{background:#151c29;border:1px solid #263448;border-radius:12px;padding:14px;margin:12px 0}
+.score{font-size:25px;font-weight:bold;color:#00e5a0}
+small{color:#9ca9bd;overflow-wrap:anywhere}
+.tag{color:#ffc857;font-size:12px}
+</style>
+</head>
+<body>
+<h1>GROK BOT</h1>
+<h3>RANK SCANNER 0.3</h3>
+<div class="status" id="status">Menghubungkan ke PumpPortal...</div>
+<div id="feed"></div>
+
+<script>
+const statusBox=document.getElementById("status");
+const feed=document.getElementById("feed");
+const tokens=new Map();
+
+function calculateScore(d){
+  const buy=Number(d.solAmount||d.initialQuoteAmount||0);
+  const mc=Number(d.marketCapSol||0);
+
+  let score=0;
+
+  if(buy>=3) score+=40;
+  else if(buy>=1) score+=32;
+  else if(buy>=0.3) score+=22;
+  else if(buy>0) score+=10;
+
+  if(mc>=20 && mc<=50) score+=40;
+  else if(mc>50 && mc<=100) score+=30;
+  else if(mc>100 && mc<=200) score+=18;
+  else if(mc>0) score+=10;
+
+  if(d.traderPublicKey) score+=10;
+  if(d.uri) score+=10;
+
+  return Math.min(100,score);
+}
+
+function addToken(d){
+  if(!d.mint || tokens.has(d.mint)) return;
+
+  const score=calculateScore(d);
+  tokens.set(d.mint,{...d,score});
+
+  const sorted=[...tokens.values()].sort((a,b)=>b.score-a.score);
+  feed.innerHTML="";
+
+  sorted.forEach(t=>{
+    const card=document.createElement("div");
+    card.className="card";
+
+    const name=document.createElement("h3");
+    name.textContent=(t.name||"Unknown")+" ("+(t.symbol||"-")+")";
+
+    const points=document.createElement("div");
+    points.className="score";
+    points.textContent=t.score+"/100";
+
+    const label=document.createElement("div");
+    label.className="tag";
+    label.textContent=t.score>=80?"SKOR TINGGI":t.score>=60?"PANTAU":t.score>=40?"NETRAL":"SKOR RENDAH";
+
+    const details=document.createElement("p");
+    details.textContent="Pembelian awal: "+Number(t.solAmount||t.initialQuoteAmount||0).toFixed(3)+" SOL | Market cap: "+Number(t.marketCapSol||0).toFixed(2)+" SOL";
+
+    const address=document.createElement("small");
+    address.textContent="Mint: "+t.mint;
+
+    card.append(name,points,label,details,address);
+    feed.appendChild(card);
+  });
+
+  if(tokens.size>100){
+    const oldest=tokens.keys().next().value;
+    tokens.delete(oldest);
+  }
+}
+
+function connect(){
+  const ws=new WebSocket("wss://pumpportal.fun/api/data");
+
+  ws.onopen=()=>{
+    statusBox.textContent="TERHUBUNG - Memindai token baru";
+    ws.send(JSON.stringify({method:"subscribeNewToken"}));
+  };
+
+  ws.onmessage=(event)=>{
+    try{
+      const d=JSON.parse(event.data);
+      if(d.txType==="create" || d.mint) addToken(d);
+    }catch(e){}
+  };
+
+  ws.onerror=()=>{
+    statusBox.textContent="Koneksi mengalami masalah";
+  };
+
+  ws.onclose=()=>{
+    statusBox.textContent="Terputus - mencoba kembali dalam 5 detik";
+    setTimeout(connect,5000);
+  };
+}
+
+connect();
+</script>
+</body>
+</html>
+
