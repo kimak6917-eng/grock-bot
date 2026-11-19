@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROK BOT DEV MONITOR</title>
+<style>
+body{background:#080b12;color:#e8edf7;font-family:Arial,sans-serif;padding:18px}
+h2{color:#bd8cff}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:16px;margin:12px 0;overflow-wrap:anywhere}
+input,button{padding:12px;border-radius:8px;border:0;margin:5px 0}
+input{background:#202b3c;color:white;width:90%}
+button{background:#a77aff;color:#080b12;font-weight:bold}
+small{color:#91a0b7}
+a{color:#bd8cff}
+</style>
+</head>
+<body>
+<h2>GROK BOT — DEV v0.9</h2>
+<p>Developer Wallet Activity Monitor</p>
+
+<div class="card">
+<h3>Wallet Developer / Creator</h3>
+<input id="wallet" placeholder="Alamat wallet publik Solana">
+<button onclick="start()">MULAI PANTAU</button>
+<p><small>Hanya membaca aktivitas blockchain publik. Tidak melakukan transaksi.</small></p>
+</div>
+
+<div class="card">
+<h3>Status</h3>
+<div id="status">Menunggu alamat wallet...</div>
+</div>
+
+<div class="card">
+<h3>Aktivitas Wallet</h3>
+<div id="activity">Belum ada data.</div>
+</div>
+
+<script>
+const RPC='https://api.mainnet-beta.solana.com';
+let address='';
+let seen=new Set();
+let timer=null;
+
+async function check(){
+ if(!address)return;
+ try{
+  const res=await fetch(RPC,{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({
+    jsonrpc:'2.0',
+    id:1,
+    method:'getSignaturesForAddress',
+    params:[address,{limit:20}]
+   })
+  });
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+
+  let count=0;
+  (data.result||[]).forEach(tx=>{
+   if(seen.has(tx.signature))return;
+   seen.add(tx.signature);
+   count++;
+
+   const card=document.createElement('div');
+   card.className='card';
+
+   const title=document.createElement('b');
+   title.textContent=tx.err?'Transaksi gagal':'Transaksi terdeteksi';
+
+   const time=document.createElement('p');
+   time.textContent=tx.blockTime?
+    new Date(tx.blockTime*1000).toLocaleString('id-ID'):
+    'Waktu tidak tersedia';
+
+   const link=document.createElement('a');
+   link.href='https://solscan.io/tx/'+tx.signature;
+   link.target='_blank';
+   link.rel='noopener';
+   link.textContent='Buka detail transaksi';
+
+   card.append(title,time,link);
+   document.getElementById('activity').prepend(card);
+  });
+
+  document.getElementById('status').textContent=
+   'TERHUBUNG — '+count+' transaksi baru ditemukan pada pemeriksaan ini.';
+ }catch(e){
+  document.getElementById('status').textContent='Gagal membaca data: '+e.message;
+ }
+}
+
+function start(){
+ const value=document.getElementById('wallet').value.trim();
+ if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)){
+  alert('Masukkan alamat wallet Solana yang valid.');
+  return;
+ }
+ address=value;
+ seen.clear();
+ document.getElementById('activity').textContent='Memuat aktivitas...';
+ document.getElementById('status').textContent='Menghubungkan...';
+ if(timer)clearInterval(timer);
+ check();
+ timer=setInterval(check,30000);
+}
+</script>
+</body>
+</html>
