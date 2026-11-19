@@ -1,38 +1,37 @@
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GROK BOT AUTO ENGINE v2.0</title>
+<title>GROK BOT AUTO ENGINE v2.1</title>
 <style>
 body{background:#080b12;color:#e8edf7;font-family:Arial;padding:16px}
 h2{color:#00e5a0}
-.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:15px;margin:12px 0}
+.card{background:#131a27;border:1px solid #263247;border-radius:12px;padding:15px;margin:12px 0;overflow-wrap:anywhere}
 input,button{padding:12px;border-radius:8px;border:0;margin:5px 0}
 input{background:#202b3c;color:white;width:90%}
 button{background:#00c98b;color:#06120e;font-weight:bold}
 .stop{background:#ff6374}
 small{color:#91a0b7}
-.good{color:#00e5a0}.bad{color:#ff6374}
 </style>
 </head>
 <body>
-<h2>GROK BOT — AUTO ENGINE v2.0</h2>
-<p>PAPER TRADING ONLY</p>
+<h2>GROK BOT — AUTO ENGINE v2.1</h2>
+<p>PAPER TRADING ONLY — NO REAL TRANSACTIONS</p>
 
 <div class="card">
 <h3>ACCOUNT</h3>
 <p>Virtual balance: <b id="balance">$50.00</b></p>
-<p>Real trading: <b style="color:#ff6374">DISABLED</b></p>
 <p>Status: <b id="status">STOPPED</b></p>
-<button onclick="start()">START AUTO BOT</button>
+<button onclick="start()">START BOT</button>
 <button class="stop" onclick="stop()">STOP BOT</button>
 </div>
 
 <div class="card">
-<h3>STRATEGY SETTINGS</h3>
-<label>Modal per pembelian ($)</label>
+<h3>STRATEGY</h3>
+<label>Modal per posisi ($)</label>
 <input id="size" type="number" value="2">
 <label>Take Profit (%)</label>
 <input id="tp" type="number" value="25">
@@ -43,7 +42,7 @@ small{color:#91a0b7}
 </div>
 
 <div class="card">
-<h3>LIVE TOKEN FEED</h3>
+<h3>TOKEN FEED</h3>
 <div id="feed">Menunggu koneksi...</div>
 </div>
 
@@ -59,23 +58,24 @@ small{color:#91a0b7}
 
 <script>
 const WS='wss://pumpportal.fun/api/data';
+const PRICE_API='https://api.dexscreener.com/latest/dex/tokens/';
 let socket=null;
 let running=false;
 let balance=50;
 let positions={};
-let history=[];
 let seen=new Set();
+let priceTimer=null;
 
-function number(id, fallback){
+function val(id,def){
  const n=Number(document.getElementById(id).value);
- return Number.isFinite(n)&&n>0?n:fallback;
+ return Number.isFinite(n)&&n>0?n:def;
 }
 
-function log(message){
- const div=document.createElement('div');
- div.className='card';
- div.textContent=new Date().toLocaleTimeString('id-ID')+' — '+message;
- document.getElementById('history').prepend(div);
+function log(msg){
+ const d=document.createElement('div');
+ d.className='card';
+ d.textContent=new Date().toLocaleTimeString('id-ID')+' — '+msg;
+ document.getElementById('history').prepend(d);
 }
 
 function updateBalance(){
@@ -84,8 +84,6 @@ function updateBalance(){
 
 function start(){
  if(running)return;
- const size=number('size',2);
- if(size>50){alert('Modal pembelian melebihi modal virtual');return;}
  running=true;
  document.getElementById('status').textContent='CONNECTING';
  socket=new WebSocket(WS);
@@ -93,26 +91,20 @@ function start(){
  socket.onopen=()=>{
   document.getElementById('status').textContent='RUNNING — PAPER MODE';
   socket.send(JSON.stringify({method:'subscribeNewToken'}));
-  log('Bot aktif. Feed token baru tersambung.');
+  log('Feed token baru terhubung.');
  };
 
- socket.onmessage=(event)=>{
+ socket.onmessage=event=>{
   if(!running)return;
   try{
-   const data=JSON.parse(event.data);
-   if(!data.mint||!data.symbol||!data.marketCapSol)return;
-   if(seen.has(data.mint))return;
-   seen.add(data.mint);
-   if(seen.size>500)seen.clear();
-
-   const price=Number(data.marketCapSol);
-   const token={
-    mint:data.mint,
-    symbol:String(data.symbol).slice(0,20),
-    price:price
-   };
-   showFeed(token);
-   autoBuy(token);
+   const t=JSON.parse(event.data);
+   if(!t.mint||!t.symbol||seen.has(t.mint))return;
+   seen.add(t.mint);
+   const div=document.createElement('div');
+   div.className='card';
+   div.textContent=t.symbol+' — token terdeteksi';
+   document.getElementById('feed').prepend(div);
+   checkPriceAndBuy(t);
   }catch(e){}
  };
 
@@ -123,72 +115,96 @@ function start(){
  socket.onclose=()=>{
   if(running)document.getElementById('status').textContent='DISCONNECTED';
  };
+
+ priceTimer=setInterval(updatePrices,15000);
 }
 
 function stop(){
  running=false;
  if(socket){socket.close();socket=null;}
+ if(priceTimer){clearInterval(priceTimer);priceTimer=null;}
  document.getElementById('status').textContent='STOPPED';
- log('Bot dihentikan.');
+ log('Bot dihentikan. Posisi simulasi tetap tersimpan selama halaman terbuka.');
 }
 
-function showFeed(t){
- const div=document.createElement('div');
- div.className='card';
- div.textContent=t.symbol+' | Market cap SOL: '+t.price;
- document.getElementById('feed').prepend(div);
+async function getPrice(mint){
+ const response=await fetch(PRICE_API+encodeURIComponent(mint));
+ if(!response.ok)throw new Error('Harga tidak tersedia');
+ const data=await response.json();
+ const pairs=(data.pairs||[])
+  .filter(p=>p.chainId==='solana'&&Number(p.priceUsd)>0)
+  .sort((a,b)=>(Number(b.liquidity?.usd)||0)-(Number(a.liquidity?.usd)||0));
+ return pairs.length?Number(pairs[0].priceUsd):null;
 }
 
-function autoBuy(t){
- const size=number('size',2);
- const max=Math.floor(number('max',3));
- if(Object.keys(positions).length>=max)return;
- if(balance<size)return;
- if(positions[t.mint])return;
+async function checkPriceAndBuy(token){
+ if(!running)return;
+ const size=val('size',2);
+ const max=Math.floor(val('max',3));
+ if(Object.keys(positions).length>=max||balance<size)return;
 
- balance-=size;
- positions[t.mint]={
-  symbol:t.symbol,
-  mint:t.mint,
-  entry:t.price,
-  current:t.price,
-  amount:size
- };
- updateBalance();
- log('SIMULASI BUY '+t.symbol+' sebesar $'+size);
- renderPositions();
-}
+ try{
+  const price=await getPrice(token.mint);
+  if(!price||!running)return;
+  if(positions[token.mint])return;
 
-function autoSell(p){
- const tp=number('tp',25);
- const sl=number('sl',15);
- const pnl=((p.current-p.entry)/p.entry)*100;
- if(pnl>=tp||pnl<=-sl){
-  const result=p.amount*(1+pnl/100);
-  balance+=result;
-  log('SIMULASI SELL '+p.symbol+' | PnL '+pnl.toFixed(2)+'%');
-  delete positions[p.mint];
+  balance-=size;
+  positions[token.mint]={
+   mint:token.mint,
+   symbol:String(token.symbol).slice(0,20),
+   entry:price,
+   current:price,
+   amount:size
+  };
   updateBalance();
-  renderPositions();
+  log('SIMULASI BUY '+token.symbol+' pada harga $'+price);
+  render();
+ }catch(e){
+  log('Harga '+token.symbol+' belum tersedia; tidak dibeli.');
  }
 }
 
-function renderPositions(){
+async function updatePrices(){
+ if(!running)return;
+ const list=Object.values(positions);
+ for(const p of list){
+  try{
+   const price=await getPrice(p.mint);
+   if(!price||!positions[p.mint])continue;
+   p.current=price;
+   const pnl=(price-p.entry)/p.entry*100;
+   const tp=val('tp',25);
+   const sl=val('sl',15);
+
+   if(pnl>=tp||pnl<=-sl){
+    const proceeds=p.amount*(1+pnl/100);
+    balance+=proceeds;
+    log('SIMULASI SELL '+p.symbol+' | PnL '+pnl.toFixed(2)+'%');
+    delete positions[p.mint];
+    updateBalance();
+   }
+  }catch(e){}
+ }
+ render();
+}
+
+function render(){
  const box=document.getElementById('positions');
  box.innerHTML='';
  const list=Object.values(positions);
  if(!list.length){box.textContent='Belum ada posisi.';return;}
+
  list.forEach(p=>{
-  const pnl=((p.current-p.entry)/p.entry)*100;
-  const div=document.createElement('div');
-  div.className='card';
-  div.textContent=p.symbol+' | Entry: '+p.entry+
-   ' | Current: '+p.current+
+  const pnl=(p.current-p.entry)/p.entry*100;
+  const d=document.createElement('div');
+  d.className='card';
+  d.textContent=p.symbol+
+   ' | Entry: $'+p.entry+
+   ' | Harga: $'+p.current+
    ' | PnL: '+pnl.toFixed(2)+'%';
-  box.append(div);
+  box.append(d);
  });
 }
-
 </script>
 </body>
 </html>
